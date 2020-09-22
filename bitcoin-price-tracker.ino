@@ -1,5 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
+#include "SSD1306Wire.h"
+
+#define I2C 0x3c
 
 const char* ssid = "wifi-network";
 const char* password = "wifi-password";
@@ -15,14 +18,24 @@ String request = String("GET ") + url + " HTTP/1.1\r\n" +
 // Use web browser to view and copy SHA1 fingerprint of the certificate
 const char* fingerprint PROGMEM = "89 25 60 5D 50 44 FC C0 85 2B 98 D7 D3 66 52 28 68 4D E6 E2";
 
+// Initialize the OLED display using Arduino Wire:
+SSD1306Wire display(I2C, SDA, SCL);
+
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(115200);
 
   connectToWiFiNetwork();
 
-  String response = connectToAPI();
-  Serial.println(response);
+  initializeDisplay();
+}
+
+void loop() {
+  String response = requestBitcoinPrice();
+  String price = parseResponse(response);
+  
+  displayBitcoinPrice(price);
+  
+  delay(30000);
 }
 
 void connectToWiFiNetwork() {
@@ -42,7 +55,15 @@ void connectToWiFiNetwork() {
   Serial.println(WiFi.localIP());
 }
 
-String connectToAPI() {
+void initializeDisplay() {
+  Serial.println("Initialsing display");
+  
+  display.init();
+  display.flipScreenVertically();
+  display.setFont(ArialMT_Plain_24);
+}
+
+String requestBitcoinPrice() {
   Serial.print("Connecting to ");
   Serial.println(host);
 
@@ -86,6 +107,19 @@ String connectToAPI() {
   return body;
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+String parseResponse(String response) {
+  int from = response.indexOf(':') + 1;
+  int startIndex = response.indexOf(':', from) + 1;
+  int endIndex = response.indexOf('}');
+  
+  return response.substring(startIndex, endIndex);
+}
+
+void displayBitcoinPrice(String price) {
+  Serial.println("Displaying Bitcoin price");
+  
+  display.clear();
+  display.drawString(0, 0, "1 BTC");
+  display.drawString(0, 40, price + " $");
+  display.display();
 }
