@@ -4,8 +4,8 @@
 
 #define I2C 0x3c
 
-const char* ssid = "wifi-network";
-const char* password = "wifi-password";
+const char* ssid = "wifi_network";
+const char* password = "wifi_password";
 
 const char* host = "api.coingecko.com";
 const int port = 443;
@@ -21,12 +21,20 @@ const char* fingerprint PROGMEM = "89 25 60 5D 50 44 FC C0 85 2B 98 D7 D3 66 52 
 // Initialize the OLED display using Arduino Wire:
 SSD1306Wire display(I2C, SDA, SCL);
 
+const int GREEN_LED = 3;
+const int RED_LED = 1;
+
+double previousPrice = 0.0;
+const double threshold = 0.1;
+
 void setup() {
   Serial.begin(115200);
 
   connectToWiFiNetwork();
 
   initializeDisplay();
+
+  initializeLEDs();
 }
 
 void loop() {
@@ -34,6 +42,7 @@ void loop() {
   String price = parseResponse(response);
   
   displayBitcoinPrice(price);
+  setPreviousPrice(price);
   
   delay(30000);
 }
@@ -61,6 +70,13 @@ void initializeDisplay() {
   display.init();
   display.flipScreenVertically();
   display.setFont(ArialMT_Plain_24);
+}
+
+void initializeLEDs() {
+  Serial.println("Initialising LEDs");
+  
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
 }
 
 String requestBitcoinPrice() {
@@ -122,4 +138,36 @@ void displayBitcoinPrice(String price) {
   display.drawString(0, 0, "1 BTC");
   display.drawString(0, 40, price + " $");
   display.display();
+}
+
+void setPreviousPrice(String current) {
+  double currentPrice = current.toDouble();
+
+  if (previousPrice != 0) {
+    compareBitcoinPrice(currentPrice, previousPrice);
+  } 
+  
+  previousPrice = currentPrice;
+}
+
+void compareBitcoinPrice(double currentPrice, double previousPrice) {
+  if (currentPrice >= (previousPrice + threshold)) {
+    flashLED(GREEN_LED);
+  } else if (currentPrice <= (previousPrice - threshold)) {
+    flashLED(RED_LED);
+  }
+}
+
+void flashLED(int LED) {
+  digitalWrite(LED, HIGH);
+  delay(200);
+  digitalWrite(LED, LOW);
+  delay(200);
+  digitalWrite(LED, HIGH);
+  delay(200);
+  digitalWrite(LED, LOW);
+  delay(200);
+  digitalWrite(LED, HIGH);
+  delay(200);
+  digitalWrite(LED, LOW);
 }
